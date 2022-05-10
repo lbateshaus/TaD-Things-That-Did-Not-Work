@@ -1,0 +1,393 @@
+---
+title: "What Peer Reviewed Journal Articles Can Tell Us About Ethics"
+description: |
+  This project is going to be using different Text as Data tools to try and understand how ethical considerations are included in research papers.
+author:
+  - name: Lissie Bates-Haus, Ph.D. 
+    url: https://github.com/lbateshaus
+    affiliation: U Mass Amherst DACSS MS Student
+    affiliation_url: https://www.umass.edu/sbs/data-analytics-and-computational-social-science-program/ms
+date: "`r Sys.Date()`"
+output: distill::distill_article
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Overall Approach
+
+This will be a two-stage process, focusing on topics in my corpus as a whole, and then looking at paragraphs where an ethic* term appears, and modeling just on those paragraphs.
+
+_Ethic* Approach_
+
+For this part of the project, I will be subdividing my corpus of the whole texts of the selected articles to the paragraph level, finding and extracting the paragraphs that mention an ethic* term, and topic modeling on those specific paragraphs. The purpose of this is to try and gain understand of the ways that ethics are discussed in published experimental research.
+
+_Corpus Approach_
+
+For this part of the project, I will be creating topic models based on the abstracts of the articles in my corpus (going on the assumption that the abstract does summarize the general topic of the article). 
+
+_Integration_
+
+Once I have both sets of topic models, I can explore if there is any relationship between the kinds of topics in articles that do mention ethics, and the kinds of topics in articles that do not mention ethics.
+
+## Ethic* Topic Modeling
+
+1.    Pull in full text articles.
+
+```{r, warning=FALSE, message=FALSE}
+#load in initial necessary libraries
+
+library(quanteda)
+library(readr)
+library(dplyr)
+library(stringr)
+library(tidytext)
+library(tm)
+library(lexicon)
+library(wordcloud)
+library(textstem)
+library(tidyverse)
+library(quanteda)
+library(purrr)
+library(rvest)
+library(curl)
+library(httr)
+library(text2vec)
+library(LDAvis)
+library(caret)
+library(randomForest)
+library(caTools)
+library(ldatuning)
+```
+
+### 1.  Import text as character vector
+
+  + Create function to perform pdf to text conversion
+  + _based on code found [here](https://slcladal.github.io/convertpdf2txt.html)_ 
+
+```{r}
+#function to perform pdf to text conversion for many documents
+convertpdf2txt <- function(dirpath){
+  files <- list.files(dirpath, full.names = T)
+  x <- sapply(files, function(x){
+  x <- pdftools::pdf_text(x) %>%
+  paste(sep = " ") %>%
+  stringr::str_replace_all(fixed("\n"), " ") %>%
+  stringr::str_replace_all(fixed("\r"), " ") %>%
+  stringr::str_replace_all(fixed("\t"), " ") %>%
+  stringr::str_replace_all(fixed("\""), " ") %>%
+  paste(sep = " ", collapse = " ") %>%
+  stringr::str_squish() %>%
+  stringr::str_replace_all("- ", "") 
+  return(x)
+    })
+```
+
+
+```{r}
+}
+```
+
+I'm going to use code from an earlier iteration of this project. I'm going to pull in each set of articles by journal so I can add the journal identifier before I create one combined set of texts.
+
+First, pull in each journal individually (I am suppressing this code for the sake of brevity).
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+
+# Journal of Political Science
+
+AJPStxts <- convertpdf2txt("~/DACSS/697D Text as Data/Final Project Materials/Articles pdfs/American Journal of Political Science")
+
+#Create Corpus
+AJPScorpus <- corpus(AJPStxts)
+AJPSsummary <- summary(AJPScorpus)
+
+
+#American Political Science Review
+
+APSRtxts <- convertpdf2txt("~/DACSS/697D Text as Data/Final Project Materials/Articles pdfs/American Political Science Review")
+
+#Create Corpus
+APSRcorpus <- corpus(APSRtxts)
+APSRsummary <- summary(APSRcorpus)
+
+
+#American Politics Research
+
+APRtxts <- convertpdf2txt("~/DACSS/697D Text as Data/Final Project Materials/Articles pdfs/American Politics Research")
+
+#Create Corpus
+APRcorpus <- corpus(APRtxts)
+APRsummary <- summary(APRcorpus)
+
+
+#Journal of Experimental Political Research
+
+JEPStxts <- convertpdf2txt("~/DACSS/697D Text as Data/Final Project Materials/Articles pdfs/Journal of Experimental Political Science")
+
+#Create Corpus
+JEPScorpus <- corpus(JEPStxts)
+JEPSsummary <- summary(JEPScorpus)
+
+
+#Political Science Research and Methods
+
+PSRMtxts <- convertpdf2txt("~/DACSS/697D Text as Data/Final Project Materials/Articles pdfs/Political Science Research and Methods")
+
+#Create Corpus
+PSRMcorpus <- corpus(PSRMtxts)
+PSRMsummary <- summary(PSRMcorpus)
+
+
+#Research and Politics
+
+RAPtxts <- convertpdf2txt("~/DACSS/697D Text as Data/Final Project Materials/Articles pdfs/Research and Politics")
+
+#Create Corpus
+RAPcorpus <- corpus(RAPtxts)
+RAPsummary <- summary(RAPcorpus)
+
+```
+
+Add Journal identifier and unique ID to each summary and apply it to the Corpus:
+
+```{r}
+
+#Not sure if there's a better way to generate a unique ID number than coding this manually
+
+# Journal of Political Science
+AJPSsummary$Journal <- "American Journal of Political Science"
+AJPSsummary$ID <- 1:nrow(AJPSsummary) + 100
+docvars(AJPScorpus) <- AJPSsummary
+
+#American Political Science Review
+APSRsummary$Journal <- "American Political Science Review"
+APSRsummary$ID <- 1:nrow(APSRsummary) + 200
+docvars(APSRcorpus) <- APSRsummary
+
+#American Politics Research
+APRsummary$Journal <- "American Politics Research"
+APRsummary$ID <- 1:nrow(APRsummary) +300
+docvars(APRcorpus) <- APRsummary
+
+#Journal of Experimental Political Research
+JEPSsummary$Journal <- "Journal of Experimental Political Research"
+JEPSsummary$ID <- 1:nrow(JEPSsummary) + 400
+docvars(JEPScorpus) <- JEPSsummary
+
+#Political Science Research and Methods
+PSRMsummary$Journal <- "Political Science Research and Methods"
+PSRMsummary$ID <- 1:nrow(PSRMsummary) + 500
+docvars(PSRMcorpus) <- PSRMsummary
+
+#Research and Politics
+RAPsummary$Journal <- "Research and Politics"
+RAPsummary$ID <- 1:nrow(RAPsummary) + 600
+docvars(RAPcorpus) <- RAPsummary
+
+```
+
+Summary of each journal's metadata:
+
+```{r}
+names(AJPSsummary)
+names(APRsummary)
+names(APSRsummary)
+names(JEPSsummary)
+names(PSRMsummary)
+names(RAPsummary)
+```
+
+Join individual corpora into one combined corpus:
+
+```{r}
+#let's see if this works??
+
+corpus <- c(AJPScorpus, APRcorpus, APSRcorpus, JEPScorpus, PSRMcorpus, RAPcorpus)
+docvars(corpus)
+
+#so I guess I don't need to create a summary? what happens if I do?
+corpusSummary <- docvars(corpus)
+
+```
+
+```{r}
+head(corpus)
+```
+
+I now have a corpus of all my texts with Journal and ID identifiers.
+
+I'm not going to worry about the data cleaning here, because I'm going to be subsetting by paragraph and pulling out just my ethics paragraphs (theoretically).
+
+```{r}
+paragraphCorpus <- corpus
+
+# the command to reshape our corpus to the paragraph level
+paragraphCorpus <- corpus_reshape(paragraphCorpus, to = "paragraphs", use_docvars = TRUE)
+ndoc(paragraphCorpus)
+```
+
+Okay, my initial attempt, based on Week 2 Code did not change anything. I still have 121 elements.
+
+Convert my corpus back to text.
+
+```{r}
+
+texts <- as.character(corpus)
+
+```
+
+Now I'm going to try again to split it into a new element at the paragraph level:
+
+```{r}
+
+paragraphs <- str_split_fixed(texts, "\n", n=Inf)
+
+```
+
+Going back to look at my texts to see what the problem is, and it appears that the problem is how I loaded the pdfs in in the first place, with no formatting. Even taking out the line to remove \n does not work.
+
+```{r}
+head(texts)[1]
+```
+
+Do I need to OCR it?
+
+```{r}
+#this didn't work
+#doc1 <- pdf_ocr_text("~/DACSS/697D Text as Data/Final Project Materials/Articles pdfs/All Articles Short Names/doc1.pdf")
+```
+
+
+```{r}
+#doc1para <- str_split_fixed(doc1, "\n1\n", n=Inf)
+```
+
+OKay, this doesn't work either. [Going to omment out the code.]
+
+```{r}
+#this didn't work
+#doc2 <- pdf_text("~/DACSS/697D Text as Data/Final Project Materials/Articles pdfs/All Articles Short Names/doc2.pdf")
+```
+
+Going to try another thing:
+
+```{r}
+setwd("~/DACSS/697D Text as Data/Final Project Materials/Articles pdfs/All Articles")
+files <- list.files(pattern = "pdf$")
+```
+
+
+```{r}
+setwd("~/DACSS/697D Text as Data/Final Project Materials/Articles pdfs/All Articles")
+docs <- lapply(files, pdf_text)
+length(docs)
+```
+
+different approach
+```{r}
+docs[3]
+```
+
+```{r}
+setwd("~/DACSS/697D Text as Data/Final Project Materials/Articles pdfs/All Articles")
+corpus <- Corpus(URISource(files),
+               readerControl = list(reader = readPDF))
+class(corpus)
+```
+
+```{r}
+
+library(corpus)
+corpus1 <- as_corpus_text(docs)
+paragraph <- text_split(corpus1, text, units = "paragraphs")
+
+```
+
+
+
+### 2. Initial Data Cleaning? 
+
+We have multiple kinds of cleaning we need to do. After MUCH struggle and experimentation, I'm going to do as much of this on the original texts object itself, before I move onto other preprocessing.
+
++ remove numbers
+
+Is there any chance this removed the numbers? [I THINK IT DID]
+
+```{r}
+texts <- str_remove_all(texts, "[:digit:]")
+```
+
++ remove urls
+
+Imperfect, but I think it got some?
+
+```{r, message=FALSE}
+#library(stringr)
+url_regex <- "http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+"
+
+texts <- str_remove_all(texts, url_regex)
+```
+
++ remove emails? [Don't know how to do this! Update: found code online.]
+
+```{r}
+#Function containing regex pattern to remove email id
+RemoveEmail <- function(x) {
+  require(stringr)
+  str_replace_all(x,"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\\.[a-zA-Z0-9-.]+", "")
+} 
+
+texts <- RemoveEmail(texts)
+
+#library(tm)
+#corpus =  Corpus(VectorSource(text)) # Corpus creation
+#corpus <- tm_map(corpus,content_transformer(RemoveEmail)) # removing email ids
+```
+
+[I have no idea if this is working or not but I'm moving on!]
+
++   convert to lowercase
+
+```{r}
+texts <- str_to_lower(texts, locale = "en")
+```
+
++   convert to dataframe and add unique document ID
+  
+```{r}
+texts.df <- as.data.frame(texts)
+texts.df$ID <- 1:nrow(texts.df)
+dim(texts.df)
+```
+
+### Subdivide at the Paragraph Level
+
+_Utilizing code from Week 2 TaD Tutorial_
+
+```{r}
+#convert texts.df with docid back to character vector
+texts1 <- as.character(texts.df)
+corpus <- corpus(texts1)
+corpus_summary <- summary(corpus) 
+head(corpus_summary)
+```
+
+As before, I'm unsure why my corpus_summary only returns 100 observations.
+
+Check for metadata:
+
+```{r}
+docvars(corpus)
+```
+
+No metadata available.
+
+
+
+
+
+
+
+

@@ -1,0 +1,254 @@
+---
+title: "Untitled"
+author: "Lissie Bates-Haus"
+date: "5/2/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Load in libraries:
+
+```{r, warning=FALSE, message=FALSE}
+#load in initial necessary libraries
+
+library(quanteda)
+library(readr)
+library(dplyr)
+library(stringr)
+library(tidytext)
+```
+
+### Load in all articles as a text:
+
+  + Create function to perform pdf to text conversion
+  + _based on code found [here](https://slcladal.github.io/convertpdf2txt.html)_ 
+
+```{r}
+#function to perform pdf to text conversion for many documents
+
+convertpdf2txt <- function(dirpath){
+  files <- list.files(dirpath, full.names = T)
+  x <- sapply(files, function(x){
+  x <- pdftools::pdf_text(x) %>%
+  paste(sep = " ") %>%
+  stringr::str_replace_all(fixed("\n"), " ") %>%
+  stringr::str_replace_all(fixed("\r"), " ") %>%
+  stringr::str_replace_all(fixed("\t"), " ") %>%
+  stringr::str_replace_all(fixed("\""), " ") %>%
+  paste(sep = " ", collapse = " ") %>%
+  stringr::str_squish() %>%
+  stringr::str_replace_all("- ", "") 
+  return(x)
+    })
+}
+
+```
+
+### Apply the function to the directory and create corpus:
+
+```{r, results=FALSE, message=FALSE, warning=FALSE}
+texts <- convertpdf2txt("~/DACSS/697D Text as Data/Final Project Materials/Articles pdfs/All Articles")
+
+```
+
+
+```{r, warning=FALSE}
+library(tm)
+library(lexicon)
+library(wordcloud)
+library(textstem)
+```
+
+
+```{r}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(quanteda)
+library(purrr)
+library(rvest)
+library(curl)
+library(httr)
+library(text2vec)
+library(LDAvis)
+library(caret)
+library(randomForest)
+library(caTools)
+library(ldatuning)
+```
+
+
+```{r}
+
+#split data set
+set.seed(101) 
+texts.df <- as.data.frame(texts)
+sample_raw <- sample.int(n = nrow(texts.df), size = floor(97), replace = FALSE)
+train_data <- texts.df[sample_raw,]
+test_data  <- texts.df[-sample_raw,]
+# corpus setup for full corpus, train, & test
+corpus_train <- corpus(train_data)
+corpus_test <- corpus(test_data)
+corpus <- corpus(texts)
+corpus_summmary <- summary(corpus)
+docvars(corpus)
+ndoc(corpus)
+#Training tokenized
+corpus_train_tokens1 <- quanteda::tokens(corpus_train, remove_punct = T, remove_numbers = T, remove_symbols = T, remove_separators = T, remove_url = T)
+corpus_train_tokens1 <-  quanteda::tokens_tolower(corpus_train_tokens1)
+#typesnum <- grep("[[:digit:]]", types(corpus_train_tokens1), value = TRUE)
+corpus_train_tokens2 <- quanteda::tokens_select(corpus_train_tokens1, pattern = stopwords("en"), selection = "remove")
+#typesnum <- grep("[[:digit:]]", types(corpus_train_tokens2), value = TRUE)
+
+#Test tokenized
+corpus_test_tokens1 <- quanteda::tokens(corpus_test,remove_punct = T, remove_numbers = T, remove_symbols = T, remove_separators = T, remove_url = T) 
+corpus_test_tokens1<- quanteda::tokens_tolower(corpus_test_tokens1) 
+#typesnum2 <- grep("[[:digit:]]", types(corpus_test_tokens2), value = TRUE)
+corpus_test_tokens2<- quanteda::tokens_select(corpus_test_tokens1, pattern = stopwords("en"), selection = "remove")
+```
+
+```{r}
+texts.df$ID <- 1:nrow(texts.df)
+head(texts.df)
+```
+
+
+
+```{r}
+#TOPIC MODEL
+#vectorize: vocab style straight from week 9 tutorial
+
+# Iterates over each token
+it <- text2vec::itoken(as.list(corpus_train_tokens2), ids = texts.df$ID, progressbar = FALSE) #* train/test not corpus
+# Vocab Vec: Build the vocabulary for vectorization
+v <- text2vec::create_vocabulary(it)
+# Prunes vocabulary (terms that occur at least 10 times and are 25% of doc)
+v <- prune_vocabulary(v, term_count_min = 10, doc_proportion_max=0.25)
+# Creates a closure that helps transform list of tokens into vector space
+vectorizer <- text2vec::vocab_vectorizer(v)
+#create new dfm now vectorized
+train_tm_dtm <- text2vec::create_dtm(it, vectorizer, type = "dgTMatrix")
+```
+
+```{r}
+#LDA
+#finding k from somewhere on the internet I'll find it if you use it. I added Griffiths2004.
+find_k <- FindTopicsNumber(
+  train_tm_dtm,
+  topics = seq(from = 5, to = 25, by = 1), #change to your preference, less numbers. less time running
+  metrics = c("CaoJuan2009", "Arun2010", "Deveaud2014","Griffiths2004"),
+  method = "VEM",
+  control = list(seed = 567),
+  mc.cores = 2L, #this will make your pc run slow, but the code run faster. Took me about 2-3 hours.
+  verbose = TRUE)
+```
+
+```{r}
+
+library(ggplot2)
+library(reshape2)
+
+df <- melt(find_k, id.vars="topics")
+
+# Everything on the same plot
+ggplot(df, aes(topics,value, col=variable)) + 
+  geom_point() 
+ 
+```
+
+```{r}
+
+ggplot(find_k, aes(x = topics, y=CaoJuan2009)) + 
+  geom_point() 
+
+```
+
+
+```{r}
+FindTopicsNumber_plot(find_k)
+#OR from https://slcladal.github.io/topicmodels.html
+# create models with different number of topics
+find_k2 <- ldatuning::FindTopicsNumber(
+  train_tm_dtm,
+  topics = seq(from = 2, to = 25, by = 1),
+  metrics = c("CaoJuan2009",  "Deveaud2014"),
+  method = "Gibbs",
+  control = list(seed = 77),
+  verbose = TRUE
+)
+```
+
+
+```{r}
+#Training Data 
+#Now we topic model: LDA style
+set.seed(1234)
+lda_model <- LDA$new(n_topics = 25, doc_topic_prior = 0.1, topic_word_prior = 0.001)
+# Fitting model
+#https://text2vec.org/topic_modeling.html#latent_dirichlet_allocation
+doc_topic_distr <- 
+  lda_model$fit_transform(x = train_tm_dtm, n_iter = 500, 
+                          convergence_tol = 0.001, 
+                          n_check_convergence = 10, 
+                          progressbar = FALSE)
+# Get top n words for topics 1,5,&10 @ diff freq (relevance) ,0.2-0.4 recommended
+lda_model$get_top_words(n = 10, topic_number = c(1L, 5L, 10L), lambda = 0.2)
+#Plot, will tax your pc, but is quick if you don't start panic clicking
+lda_model$plot()
+```
+
+### Now running with 5
+
+```{r}
+#Training Data 
+#Now we topic model: LDA style
+set.seed(1234)
+lda_model <- LDA$new(n_topics = 5, doc_topic_prior = 0.1, topic_word_prior = 0.001)
+# Fitting model
+#https://text2vec.org/topic_modeling.html#latent_dirichlet_allocation
+doc_topic_distr <- 
+  lda_model$fit_transform(x = train_tm_dtm, n_iter = 500, 
+                          convergence_tol = 0.001, 
+                          n_check_convergence = 10, 
+                          progressbar = FALSE)
+# Get top n words for topics 1,5,&10 @ diff freq (relevance) ,0.2-0.4 recommended
+lda_model$get_top_words(n = 10, topic_number = c(1L, 2L, 3L, 4L, 5L), lambda = 0.2)
+#Plot, will tax your pc, but is quick if you don't start panic clicking
+lda_model$plot()
+
+Ktopwords <- lda_model$get_top_words(n = 10, topic_number = c(1L, 2L, 3L, 4L, 5L), lambda = 0.2)
+
+Ktopwords <- as.data.frame(Ktopwords)
+
+write_csv(Ktopwords, "Ktopwords.csv")
+```
+
+
+```{r}
+#Test Data
+# Creating iterator
+it2 <- text2vec::itoken(as.list(corpus_test_tokens2), ids = texts.df$ID, progressbar = FALSE) #* train/test not corpus
+v2 <- create_vocabulary(it2)
+# Prunes vocabulary (terms that occur at least 10 times)
+v2 <- prune_vocabulary(v2, term_count_min = 10, doc_proportion_max=0.25)
+vocab_vectorizer2 <- text2vec::vocab_vectorizer(v2)
+# Creating new DTM
+test_tm_dtm <- text2vec::create_dtm(it2, vocab_vectorizer2, type = "dgTMatrix")
+#run on the model 
+#new_doc_topic_distr = lda_model$transform(test_tm_dtm)
+new_doc_topic_distr = lda_model$transform(test_tm_dtm)
+#perplexicity
+#https://text2vec.org/topic_modeling.html#perplexity_example
+perplexity(test_tm_dtm, topic_word_distribution = lda_model$topic_word_distribution, doc_topic_distribution = new_doc_topic_distr)
+
+#Topic Distributions in docs
+#https://slcladal.github.io/topicmodels.html#Topic_distributions
+#another way to do LDA is LDAvis doesn't let you change the alpha, if you want to change the alpha
+topicModel2 <- LDA(DTM, K, method="Gibbs", control=list(iter = 500, verbose = 25, alpha = 0.2))
+# figure outs your 
+
+```
+
+

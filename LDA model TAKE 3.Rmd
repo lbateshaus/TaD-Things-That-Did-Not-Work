@@ -1,0 +1,485 @@
+---
+title: "LDA and STM Models for Final Project"
+description: |
+  Attempt #2
+author:
+  - name: Lissie Bates-Haus, Ph.D. 
+    url: https://github.com/lbateshaus
+    affiliation: U Mass Amherst DACSS MS Student
+    affiliation_url: https://www.umass.edu/sbs/data-analytics-and-computational-social-science-program/ms
+date: "`r Sys.Date()`"
+output: distill::distill_article
+---
+
+For my third go-round of this project, I'm going to do the same initial steps and then really concretely think through what I'm doing:
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Load in libraries:
+
+```{r, warning=FALSE, message=FALSE}
+#load in initial necessary libraries
+
+library(quanteda)
+library(readr)
+library(dplyr)
+library(stringr)
+library(tidytext)
+
+```
+
+Here I'm going to lay out the steps as I think they need to happen to think this all through [Based on Week 9 Topic Modeling Tutorial code]:
+
+
+```{r, warning=FALSE, message=FALSE}
+library(tm)
+library(lexicon)
+library(wordcloud)
+library(textstem)
+library(tidyverse)
+library(quanteda)
+library(purrr)
+library(rvest)
+library(curl)
+library(httr)
+library(text2vec)
+library(LDAvis)
+library(caret)
+library(randomForest)
+library(caTools)
+library(ldatuning)
+```
+
+### 1.  Import text as character vector
+
+  + Create function to perform pdf to text conversion
+  + _based on code found [here](https://slcladal.github.io/convertpdf2txt.html)_ 
+
+```{r}
+#function to perform pdf to text conversion for many documents
+#stringr::str_replace_all(([:digits:]), " ") %>%- Lissie put in to take out num but fails
+
+convertpdf2txt <- function(dirpath){
+  files <- list.files(dirpath, full.names = T)
+  x <- sapply(files, function(x){
+  x <- pdftools::pdf_text(x) %>%
+  paste(sep = " ") %>%
+  stringr::str_replace_all(fixed("\n"), " ") %>%
+  stringr::str_replace_all(fixed("\r"), " ") %>%
+  stringr::str_replace_all(fixed("\t"), " ") %>%
+  stringr::str_replace_all(fixed("\""), " ") %>%
+  paste(sep = " ", collapse = " ") %>%
+  stringr::str_squish() %>%
+  stringr::str_replace_all("- ", "") 
+  return(x)
+    })
+}
+```
+
+  + Apply the function to the directory to pull in texts:
+
+```{r, results=FALSE, message=FALSE, warning=FALSE}
+texts <- convertpdf2txt("~/DACSS/697D Text as Data/Final Project Materials/Articles pdfs/All Articles")
+
+```
+
+### 2. Data cleaning? 
+
+We have multiple kinds of cleaning we need to do. After MUCH struggle and experimentation, I'm going to do as much of this on the original texts object itself, before I move onto other preprocessing.
+
++ remove numbers
+
+Is there any chance this removed the numbers? [I THINK IT DID]
+
+```{r}
+texts <- str_remove_all(texts, "[:digit:]")
+```
+
++ remove urls
+
+Imperfect, but I think it got some?
+
+```{r, message=FALSE}
+#library(stringr)
+url_regex <- "http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+"
+
+texts <- str_remove_all(texts, url_regex)
+```
+
++ remove emails? [Don't know how to do this! Update: found code online.]
+
+```{r}
+#Function containing regex pattern to remove email id
+RemoveEmail <- function(x) {
+  require(stringr)
+  str_replace_all(x,"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\\.[a-zA-Z0-9-.]+", "")
+} 
+
+texts <- RemoveEmail(texts)
+
+#library(tm)
+#corpus =  Corpus(VectorSource(text)) # Corpus creation
+#corpus <- tm_map(corpus,content_transformer(RemoveEmail)) # removing email ids
+```
+
+[I have no idea if this is working or not but I'm moving on!]
+
++   convert to lowercase
+
+```{r}
+texts <- str_to_lower(texts, locale = "en")
+```
+
++   convert to dataframe and add unique document ID
+  
+```{r}
+texts.df <- as.data.frame(texts)
+texts.df$ID <- 1:nrow(texts.df)
+dim(texts.df)
+```
+
+I'm going to take a moment to pull code over from my wordcloud projects, since I do a lot of data cleaning there
+
+```{r}
+tokens <- texts.df %>% 
+  dplyr::select(texts) %>%
+  unnest_tokens(word, texts)
+
+dim(tokens)
+```
+
+That's a lot of tokens.
+
+Plot Top 30
+
+```{r}
+
+library(ggplot2)
+# plot the top 30 words
+tokens %>%
+  dplyr::count(word, sort = TRUE) %>%
+  top_n(30) %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(x = word, y = n)) +
+  geom_col() +
+  xlab(NULL) +
+  coord_flip() +
+      labs(x = "Count",
+      y = "Unique words",
+      title = "Count of Unique Words Found in Articles")
+
+```
+
+Deal with stop words:
+
+```{r}
+
+data("stop_words")
+# how many words do you have including the stop words?
+nrow(tokens)
+
+tokensClean <- tokens %>%
+  anti_join(stop_words) %>%
+  filter(!word == "rt")
+
+# how many words after removing the stop words?
+nrow(tokensClean)
+```
+
+Replot top 30
+
+```{r}
+
+# plot the top 30 words -- notice any issues?
+tokensClean %>%
+  dplyr::count(word, sort = TRUE) %>%
+  top_n(30) %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(x = word, y = n)) +
+  geom_col() +
+  xlab(NULL) +
+  coord_flip() +
+      labs(x = "Count",
+      y = "Unique words",
+      title = "Count of Unique Words Found in Articles")
+
+```
+
+  +   tokenize (text2vec vs quanteda)
+  +   create iterator which catalogs all your tokens
+  +   build the vocabulary
+  +   here is where the tutorial does more data cleaning via pruning
+  +   transform vocab to a vector
+  +   create document term matrix
+  
+3.    Move to the LDA modeling steps
+
+All code take from Week 9 TaD Tutorial
+
+### Tokenization
+
+```{r, results=FALSE}
+
+# Performs tokenization
+as.list(tokensClean)
+tokens1 <- word_tokenizer(tokensClean)
+
+```
+
+Also trying the quanteda code: 
+
+```{r}
+corpus <- corpus(texts)
+tokens2 <- quanteda::tokens(corpus, remove_punct = TRUE, remove_numbers = TRUE, remove_symbols = TRUE)
+tokens2 <- tokens_select(tokens2, pattern = c(stopwords("en")), selection = "remove")
+tokens2 <- tokens_select(tokens2, pattern = "[:alnum:] ", selection = "remove", valuetype = c("regex") )
+```
+
+I'm including this code for cleaning even though it should already be done.
+
+Why does quanteda return an object with 121 elements (# of documents) while text2vec returns an object with 2 elements?
+
+### Iteration
+
++ create iterator
+
+[Note: which tokens object do I want to use? For this, I'm going to use tokens2 - the quanteda object.]
+
+```{r}
+# Iterates over each token
+it <- itoken(as.list(tokens2), ids = texts.df$ID, progressbar = FALSE)
+
+# Prints iterator
+it
+```
+
+### Vocabulary-Based Vectorization
+
+```{r}
+# Built the vocabulary
+v <- create_vocabulary(it)
+
+# Print vocabulary
+#v
+class(v)
+```
+
+Okay, this is looking better than my Take 2 attempt! This brought me down to 47,177 obs. It might be interesting to run this on the different tokens objects I have to see what the difference is! I will note, the last time I ran this on not the quanteda object, I had doc count of 1 for everything. This v has what looks to be appropriate doc counts as well.
+
+Do I want to prune my vocab list? 
+
+In looking at the terms that include the pattern "ethic", I'm going to prune all words that appears <3 times, which keeps the terms "ethical," "ethically," "ethic" and "ethics." The other terms do look like either encoding errors or very specific. They are:
+
+conethical
+ethica
+ethicality
+forethical
+how-to-make-field-experiments-more-ethical
+publiclyethical
+unethical
+
+Do I want to prune terms that appear in the majority of documents? Need to think about this.
+
+[The only one I'm really interested in is "unethical" - but that can be qualitative investigation at some point.]
+
+```{r}
+# Prunes vocabualry
+v <- prune_vocabulary(v, term_count_min = 3)
+
+# Check dimensions
+dim(v)
+```
+
+OKAY OMG FINALLY - I think we're ready to do some LDA modeling!
+
+MOVING ON.
+
+Vectorize Vocabulary Words (v)
+
+```{r}
+# Creates a closure that helps transform list of tokens into vector space
+vectorizer <- vocab_vectorizer(v)
+```
+
+Create DTM:
+
+```{r}
+# Creates document term matrix
+dtm <- create_dtm(it, vectorizer, type = "dgTMatrix")
+```
+
+From here, we create our LDA model:
+
+```{r}
+# Creates new LDA model
+lda_model <- LDA$new(n_topics = 10, doc_topic_prior = 0.1, topic_word_prior = 0.01)
+
+# Print other methods for LDA
+lda_model
+```
+
+Now we fit our model:
+
+```{r}
+# Fitting model
+doc_topic_distr <- 
+  lda_model$fit_transform(x = dtm, n_iter = 1000, 
+                          convergence_tol = 0.001, n_check_convergence = 25, 
+                          progressbar = FALSE)
+```
+
+Topic Distribution:
+
+```{r}
+barplot(doc_topic_distr[1, ], xlab = "topic", 
+        ylab = "proportion", ylim = c(0, 1), 
+        names.arg = 1:ncol(doc_topic_distr))
+```
+
+Describing Topics with Top Words:
+
+```{r}
+#with a lambda of 1
+
+# Get top n words for topics 1, 5, and 10
+set.seed(1010)
+lda_model$get_top_words(n = 10, topic_number = c(1L, 5L, 10L), lambda = 1)
+```
+
+With a lambda of .2
+
+```{r}
+# Get top n words for topics 1, 5, and 10
+set.seed(1010)
+lda_model$get_top_words(n = 10, topic_number = c(1L, 5L, 10L), lambda = .2)
+```
+
+Now I'm going to try to visualize these topics:
+
+```{r}
+#system('npm install -g localtunnel')
+#this fails but I don't think I actually need it?
+
+library(servr)
+library(LDAvis)
+
+```
+
+```{r}
+# Creating plot (Ignore the link)
+lda_model$plot(open.browser = TRUE)
+```
+
+Now I'm going to rerun my models with a K of 5, because 10 gives me a lot of overlap:
+
+
+```{r}
+# Creates new LDA model
+lda_model1 <- LDA$new(n_topics = 5, doc_topic_prior = 0.1, topic_word_prior = 0.01)
+
+# Print other methods for LDA
+lda_model1
+```
+
+Now we fit our model:
+
+```{r}
+# Fitting model
+doc_topic_distr <- 
+  lda_model1$fit_transform(x = dtm, n_iter = 1000, 
+                          convergence_tol = 0.001, n_check_convergence = 25, 
+                          progressbar = FALSE)
+```
+
+Topic Distribution:
+
+```{r}
+barplot(doc_topic_distr[1, ], xlab = "topic", 
+        ylab = "proportion", ylim = c(0, 1), 
+        names.arg = 1:ncol(doc_topic_distr))
+```
+
+Describing Topics with Top Words:
+
+```{r}
+#with a lambda of 1
+
+# Get top n words for topics 1-5
+set.seed(1010)
+lda_model1$get_top_words(n = 10, topic_number = c(1L, 2L, 5L, 4L, 5L), lambda = 1)
+```
+
+With a lambda of .2
+
+```{r}
+# Get top n words for topics 1, 5, and 10
+set.seed(1010)
+lda_model1$get_top_words(n = 10, topic_number = c(1L, 2L, 5L, 4L, 5L), lambda = .2)
+```
+
+Now I'm going to try to visualize these topics:
+
+```{r}
+#system('npm install -g localtunnel')
+#this fails but I don't think I actually need it?
+
+library(servr)
+library(LDAvis)
+
+```
+
+```{r}
+# Creating plot (Ignore the link)
+lda_model1$plot(open.browser = TRUE)
+```
+
+Going to stop the server for a bit while I move on:
+
+```{r}
+servr::daemon_stop(3)
+```
+
+Now we'll try some STM!
+
+Required Libraries
+
+```{r}
+library(stm)
+library(quanteda)
+```
+
+We've already cleaned our original text file, so we'll continue to use that.
+
+```{r}
+myDfm <- dfm(texts, tolower=TRUE,
+  remove = stopwords('en'), 
+  remove_punct = TRUE
+  )
+
+dim(myDfm)
+```
+
+Correlated Topic Model
+
+```{r}
+cor_topic_model <- stm(myDfm, K = 5, 
+                   verbose = FALSE, init.type = "Spectral")
+```
+
+Labels
+
+```{r}
+labelTopics(cor_topic_model)
+```
+
+Find Thoughts
+
+```{r}
+findThoughts(cor_topic_model, 
+    texts = movie_review$review, 
+    topics = c(1:5),
+    n = 1)
+```
+
