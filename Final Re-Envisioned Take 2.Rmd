@@ -1,0 +1,206 @@
+---
+title: "What Peer Reviewed Journal Articles Can Tell Us About Ethics (Take 2)"
+description: |
+  This project is going to be using different Text as Data tools to try and understand how ethical considerations are included in research papers.
+author:
+  - name: Lissie Bates-Haus, Ph.D. 
+    url: https://github.com/lbateshaus
+    affiliation: U Mass Amherst DACSS MS Student
+    affiliation_url: https://www.umass.edu/sbs/data-analytics-and-computational-social-science-program/ms
+date: "`r Sys.Date()`"
+output: distill::distill_article
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Install libraries:
+
+```{r}
+library(pdftools)
+library(tesseract)
+```
+
+I'm going to start by trying to pull in the whole set of articles.
+
+```{r, warning=FALSE}
+setwd("~/DACSS/697D Text as Data/Final Project Materials/Articles pdfs/All Articles")
+
+pdf_files <- list.files("~/DACSS/697D Text as Data/Final Project Materials/Articles pdfs/All Articles", pattern = "pdf$")
+
+#use lapply() to apply pdf_text or other pdftools function iteractively across each of the files
+results <- lapply(pdf_files, pdf_data)
+
+```
+
+Now we have a list. Let's see if we can get it to a corpus.
+
+```{r}
+library(quanteda)
+
+#looks like we need to convert it to a dataframe 
+texts <- as.data.frame(unlist(results))
+
+#texts <- as.data.frame(results)
+
+#corpus <- corpus(texts)
+
+```
+
+Okay, this isn't working. I can't figure out how to unlist the list object and keep the text elements (aka the 121 documents).
+
+Can I pull in 1 at a time?
+
+```{r}
+doc1 <- pdf_data("~/DACSS/697D Text as Data/Final Project Materials/Articles pdfs/All Articles Short Names/doc1.pdf")
+doc1 <- toString(doc1)
+doc1 <- as.data.frame(doc1)
+```
+
+It still pulls it in as a list object. Converting to string does not work. Try something else.
+
+```{r}
+library(readr)
+doc1 <- read_tsv(file = "~/DACSS/697D Text as Data/Final Project Materials/Articles pdfs/All Articles Short Names/doc1.txt")
+```
+
+This doesn't work - it gets me the text chunked.
+
+I'm going to go back to my original function and see if I can get it to just read text in without doing any of the cleaning:
+
+
+```{r}
+#function to perform pdf to text conversion for many documents
+#stringr::str_replace_all(([:digits:]), " ") %>%- Lissie put in to take out num but fails
+#stringr::str_replace_all(fixed("\n"), " ") %>% pulled out so I can split at paragraph
+#%>%
+#  paste(sep = " ") %>%
+#  stringr::str_replace_all(fixed("\r"), " ") %>%
+#  stringr::str_replace_all(fixed("\t"), " ") %>%
+#  stringr::str_replace_all(fixed("\""), " ") %>%
+#  paste(sep = " ", collapse = " ") %>%
+#  stringr::str_squish() %>%
+#  stringr::str_replace_all("- ", "") 
+
+convertpdf2txt <- function(dirpath){
+  files <- list.files(dirpath, full.names = T)
+  x <- sapply(files, function(x){
+  x <- pdftools::pdf_text(x) %>%
+#  paste(sep = " ") %>%
+#  stringr::str_replace_all(fixed("\r"), " ") %>%
+#  stringr::str_replace_all(fixed("\t"), " ") %>%
+#  stringr::str_replace_all(fixed("\""), " ") %>%
+#  paste(sep = " ", collapse = " ") %>%
+#  stringr::str_squish() %>%
+#  stringr::str_replace_all("- ", "") 
+  return(x)
+    })
+}
+```
+
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+
+# Journal of Political Science
+
+AJPStxts <- convertpdf2txt("~/DACSS/697D Text as Data/Final Project Materials/Articles pdfs/American Journal of Political Science")
+
+#Create Corpus
+AJPScorpus <- corpus(AJPStxts)
+AJPSsummary <- summary(AJPScorpus)
+
+
+#American Political Science Review
+
+APSRtxts <- convertpdf2txt("~/DACSS/697D Text as Data/Final Project Materials/Articles pdfs/American Political Science Review")
+
+#Create Corpus
+APSRcorpus <- corpus(APSRtxts)
+APSRsummary <- summary(APSRcorpus)
+
+
+#American Politics Research
+
+APRtxts <- convertpdf2txt("~/DACSS/697D Text as Data/Final Project Materials/Articles pdfs/American Politics Research")
+
+#Create Corpus
+APRcorpus <- corpus(APRtxts)
+APRsummary <- summary(APRcorpus)
+
+
+#Journal of Experimental Political Research
+
+JEPStxts <- convertpdf2txt("~/DACSS/697D Text as Data/Final Project Materials/Articles pdfs/Journal of Experimental Political Science")
+
+#Create Corpus
+JEPScorpus <- corpus(JEPStxts)
+JEPSsummary <- summary(JEPScorpus)
+
+
+#Political Science Research and Methods
+
+PSRMtxts <- convertpdf2txt("~/DACSS/697D Text as Data/Final Project Materials/Articles pdfs/Political Science Research and Methods")
+
+#Create Corpus
+PSRMcorpus <- corpus(PSRMtxts)
+PSRMsummary <- summary(PSRMcorpus)
+
+
+#Research and Politics
+
+RAPtxts <- convertpdf2txt("~/DACSS/697D Text as Data/Final Project Materials/Articles pdfs/Research and Politics")
+
+#Create Corpus
+RAPcorpus <- corpus(RAPtxts)
+RAPsummary <- summary(RAPcorpus)
+
+```
+
+Add Journal identifier and unique ID to each summary and apply it to the Corpus:
+
+```{r}
+
+#Not sure if there's a better way to generate a unique ID number than coding this manually
+
+# Journal of Political Science
+AJPSsummary$Journal <- "American Journal of Political Science"
+AJPSsummary$ID <- 1:nrow(AJPSsummary) + 100
+docvars(AJPScorpus) <- AJPSsummary
+
+#American Political Science Review
+APSRsummary$Journal <- "American Political Science Review"
+APSRsummary$ID <- 1:nrow(APSRsummary) + 200
+docvars(APSRcorpus) <- APSRsummary
+
+#American Politics Research
+APRsummary$Journal <- "American Politics Research"
+APRsummary$ID <- 1:nrow(APRsummary) +300
+docvars(APRcorpus) <- APRsummary
+
+#Journal of Experimental Political Research
+JEPSsummary$Journal <- "Journal of Experimental Political Research"
+JEPSsummary$ID <- 1:nrow(JEPSsummary) + 400
+docvars(JEPScorpus) <- JEPSsummary
+
+#Political Science Research and Methods
+PSRMsummary$Journal <- "Political Science Research and Methods"
+PSRMsummary$ID <- 1:nrow(PSRMsummary) + 500
+docvars(PSRMcorpus) <- PSRMsummary
+
+#Research and Politics
+RAPsummary$Journal <- "Research and Politics"
+RAPsummary$ID <- 1:nrow(RAPsummary) + 600
+docvars(RAPcorpus) <- RAPsummary
+
+```
+
+Summary of each journal's metadata:
+
+```{r}
+names(AJPSsummary)
+names(APRsummary)
+names(APSRsummary)
+names(JEPSsummary)
+names(PSRMsummary)
+names(RAPsummary)

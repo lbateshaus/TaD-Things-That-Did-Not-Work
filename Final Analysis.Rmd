@@ -1,0 +1,246 @@
+---
+title: "Analysis for Final Project TAKE 1"
+description: |
+  Preliminary Analysis on Text
+author:
+  - name: Lissie Bates-Haus, Ph.D. 
+    url: https://github.com/lbateshaus
+    affiliation: U Mass Amherst DACSS MS Student
+    affiliation_url: https://www.umass.edu/sbs/data-analytics-and-computational-social-science-program/ms
+date: "`r Sys.Date()`"
+output: distill::distill_article
+---
+
+I realized that I've been going about this the wrong way, so I'm going to comment out all of my code chunks but leave them in to demonstrate the work that I did.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Step 1: Read in data from my computer
+
+```{r}
+library(readr)
+library(pdftools)  #tool used by the web tutorial
+library(tm)
+```
+
+_American Journal of Political Science:_
+
+```{r warning=FALSE}
+#set WD to the proper subfolder:
+#setwd("~/DACSS/697D Text as Data/Final Project Materials/Articles pdfs/American Journal of Political Science")
+
+#AJPSfiles <- list.files(pattern = "pdf$")
+
+#AJPS <- lapply(AJPSfiles, pdf_text)
+
+```
+
+As before, there were a large number of parsing errors, which I believe to mean that not all of my characters were able to be read in.
+
+Check how many files loaded in:
+
+```{r}
+#length(AJPS)  #verify how many files loaded in
+```
+
+Cross check this with EndNotes and downloaded files. No discrepancies found.
+
+Check the length of each file:
+
+```{r}
+#lapply(AJPS, length)  #length of each pdf
+```
+
+Repeat this for each journal.
+
+_American Political Science Review_:
+
+```{r}
+
+#American Political Science Review
+
+#setwd("~/DACSS/697D Text as Data/Final Project Materials/Articles pdfs/American Political Science Review")
+
+#APSRfiles <- list.files(pattern = "pdf$")
+
+#APSR <- lapply(APSRfiles, pdf_text)
+
+#length(APSR)
+#lapply(APSR, length) 
+```
+
+Cross-check with EndNotes and pdf folder. No discrepancies found.
+
+_American Politics Research_:
+
+```{r}
+
+#American Politics Research
+
+#setwd("~/DACSS/697D Text as Data/Final Project Materials/Articles pdfs/American Politics Research")
+
+#APRfiles <- list.files(pattern = "pdf$")
+
+#APR <- lapply(APRfiles, pdf_text)
+
+#length(APR)
+#lapply(APR, length) 
+```
+
+Cross-check with EndNotes and pdf folder. No discrepancies found.
+
+_Journal of Experimental Political Science_:
+
+```{r}
+
+#Journal of Experimental Political Science
+
+#setwd("~/DACSS/697D Text as Data/Final Project Materials/Articles pdfs/Journal of Experimental Political Science")
+
+#JEPSfiles <- list.files(pattern = "pdf$")
+
+#JEPS <- lapply(JEPSfiles, pdf_text)
+
+#length(JEPS)
+#lapply(JEPS, length) 
+```
+
+Cross-check with EndNotes and pdf folder. Discrepancy found with EndNote (20 citations in that database). Realize I've accidentally re-imported a citation I already had, and delete. No discrepancies found.
+
+_Political Science Research and Methods_:
+
+```{r}
+
+#Political Science Research and Methods
+
+#setwd("~/DACSS/697D Text as Data/Final Project Materials/Articles pdfs/Political Science Research and Methods")
+
+#PSRMfiles <- list.files(pattern = "pdf$")
+
+#PSRM <- lapply(PSRMfiles, pdf_text)
+
+#length(PSRM)
+#lapply(PSRM, length) 
+```
+
+Cross-check with EndNotes and pdf folder. No discrepancies found.
+
+_Research and Politics_:
+
+```{r}
+
+#Research and Politics
+
+#setwd("~/DACSS/697D Text as Data/Final Project Materials/Articles pdfs/Research and Politics")
+
+#RPfiles <- list.files(pattern = "pdf$")
+
+#RP <- lapply(RPfiles, pdf_text)
+
+#length(RP)
+#lapply(RP, length) 
+```
+
+Cross-check with EndNotes and pdf folder. No discrepancies found.
+
+AND THERE THEY ALL ARE!! This is very exciting.
+
+When I go back to my original research question, it is this:
+
+How are ethical standards related to experimental research dissemenated to students, young professionals and to an academic discipline as a whole? I have uploaded the PowerPoint I created for the DACSS Three Minute Thesis research presentation [on my github](https://github.com/lbateshaus/Ethics/blob/main/Three%20Minute%20Thesis%20Presentation.pptx).
+
+From my pilot study:
+
+The general topics that were searched on included:
+● Was there any mention of ethics in the article?
+● Was IRB approval reported?
+● Was informed consent obtained by the researchers from the research participants?
+● Was potential harm to research subjects or staff discussed?
+
+Searches included:
+● "ethic-"
+● "IRB", "institutional", "review board", "human", "subjects", "committee"
+● "informed", "consent"
+● "harm", "burden", "mitigat-", "minimi-" and "safe-"
+● "informed", "consent"
+● "benefit"
+
+In addition, assessment was made as to the following:
+● Was contact information for the authors provided?
+● How were research subjects selected and/or recruited?
+● Was the study registered or preregistered?
+● Was the general conflict of interest disclosure included in the article?
+● Was the data made publicly available?
+● Was any financial support or funding acknowledged?
+
+What information am I looking for?
+
+1.  Number of documents (aka journal articles) that contain the word ethics, by Journal
+  +   Steps for the process:
+  +   Tokenize my documents?
+  +   Run count?
+
+2. Do I want to include all of the search terms I used in my pilot study? 
+
+3. Can I connect my authors with ethics mentions? And connect to my Networks project?
+
+```{r warning=FALSE}
+library(quanteda)
+library(readr)
+library(dplyr)
+```
+
+Create corpus
+
+```{r}
+
+#APSRcorpus <- corpus(APSRfiles)
+#APSRsummary <- summary(APSRcorpus)
+#APSRsummary
+
+```
+
+I'm realizing that what I thought was actually pulling the pdfs in is just creating a list of the titles from the file.
+
+Trying something based on code found [here](https://slcladal.github.io/convertpdf2txt.html). 
+
+
+#function to perform pdf to text conversion for many documents
+#Just for AJPS for now
+
+convertpdf2txt <- function(dirpath){
+  files <- list.files(dirpath, full.names = T)
+  x <- sapply(files, function(x){
+  x <- pdftools::pdf_text(x) %>%
+  paste(sep = " ") %>%
+  stringr::str_replace_all(fixed("\n"), " ") %>%
+  stringr::str_replace_all(fixed("\r"), " ") %>%
+  stringr::str_replace_all(fixed("\t"), " ") %>%
+  stringr::str_replace_all(fixed("\""), " ") %>%
+  paste(sep = " ", collapse = " ") %>%
+  stringr::str_squish() %>%
+  stringr::str_replace_all("- ", "") 
+  return(x)
+    })
+}
+
+
+
+Now apply the function to the directory:
+
+
+
+AJPStxts <- convertpdf2txt("~/DACSS/697D Text as Data/Final Project Materials/Articles pdfs/American Political Science Review")
+
+# inspect the structure of the txts element
+str(AJPStxts)
+
+
+AJPScorpus <- corpus(AJPStxts)
+AJPSsummary <- summary(AJPScorpus)
+AJPSsummary                       
+
+
+OKAY THIS LOOKS MORE PROMISING!!  I'm going to go ahead and save this and publish to RPubs then create a new document to do this correctly so that I actually have my texts.

@@ -1,0 +1,144 @@
+---
+title: "Text as Data Blog Post 4"
+description: |
+  A description of the data collection for my final project
+author:
+  - name: Lissie Bates-Haus, Ph.D. 
+    url: https://github.com/lbateshaus
+    affiliation: U Mass Amherst DACSS MS Student
+    affiliation_url: https://www.umass.edu/sbs/data-analytics-and-computational-social-science-program/ms
+date: "`r Sys.Date()`"
+output: distill::distill_article
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Introduction
+
+In this blog post I'll be talking about the process of data aquistion for my final project for DACSS697: Text as Data.
+
+This project is an extension of a paper I wrote for DACSS 697: Causal Inference (Spring 2021) - [available here](https://github.com/lbateshaus/Ethics/blob/main/Integrating%20an%20Ethical%20Perspective%20into%20Field%20Experimental%20Research.pdf). In that paper, I presented a foundational exploration of the ethical concerns of field research, and conducted a pilot study where I chose two top ranking journals, one in the field of Economics and the other in Political Science. Using JSTOR, I pulled every article in each journal that mentioned field experiment in the title or abstract (through 2018), and hand-coded the text search results as well as article meta information. 
+
+For this paper, I plan to extend that research using automated TaD tools. 
+
+### Background
+
+My interest in the topic of ethical concerns was sparked in my undergraduate degree, where I earned an A.B. in Philosophy with a focus on ethics.
+
+As a licensed psychologist in the Commonwealth of MA, ethical training is an integral part of my professional development. Not only are ethics classes required for an approved PhD program, in order to be licensed as a psychologist and HSP, we must pass a general licensing exam and a jurisprudence exam specific to the laws and ethical requirements of the state. Once licensed, we complete 20 hours of CEUs every two years, which include topics on ethics. As a direct service provider for vulnerable people, the potential for harm is significant in our practice, and it is imperative that psychologists maintain the highest ethical standards. It is this background that shapes my perspective on this topic.
+
+### Overarching Question
+
+This project is part of a larger topic of interest for me, which is about the question of how ethical standards related to research and data are disseminated in professional and academic communities such as Political Science. It is my speculation that there are numerous avenues by which these standards and concerns are communicated to the larger population, particularly to students and early career professionals, whether in the academic setting or industry.
+
+I did not have a research question for my pilot study, as I was simply investigating whether or not published field experiments discussed the ethical considerations of that type of research or not. While that study had a low n and focused on two journals, it still yielded some interesting results. There as a difference between the two disciplines, in that in the American Economic Review, the word ethics was stated in only 1 of the 36 articles included, while in the American Journal of Political Science, 13 of the 28 articles mentioned the word.
+
+### Decision Making of This Study
+
+For this study, I had to make some specific decisions for data collection.
+
+1. I decided to narrow my focus only to the field of Political Science.
+2. I decided to expand to include two more journals in my analysis in addition to the AJPS. I will be including:
+  + American Political Science Review
+  + Journal of Experimental Political Science
+  + Political Science Research and Methods
+3. Articles were pulled by the following criteria:
+  + The search term used was field experiment (not in quotes)
+  + Data range was limited to 2012-2022
+  + All articles returned were downloaded as pdfs, and all citations were downloaded to EndNote
+4. I haven't decided if I want to include other research formats (aka surveys).
+5. Because of the way I did my search, it is possible that I will miss some examples of field experiment writeups.
+  
+As I went through my EndNote reference list, it quickly became clear to me that I should have down the "weeding out" of the articles that do not meet my criteria (aka they are not publishing the results of an actual field experiment) _before_ the download, because there are clearly going to be a lot of things I cull, and currently they're all downloaded as zip files.
+
+### Next Steps
+
+I'm trying to decide the order of my next steps:
+  + do I do the weeding out in my EndNotes, unzip all the zip files and simply delete everything that's not relevant?
+  + do I go back to the Journals' websites and redo my search and download?
+  + I've pulled over all the AJPS pdfs that I collected for my Causal Inference paper, but I need to QC that they're all actually there.
+
+So, after some thought, I think I need to redo the downloads because I believe I can just load the whole zip file into R so it should have just the things I'm actually going to be using.
+
+Some thoughts as I go:
+
+APSR: 
++ field experiment initial search yields 1291 results. 
++ "field experiment" yields 34
++ I'm going to go with the broader results. Limiting by date (the last 10ish years, i.e. from 2012 to present) yields 218 results
++ Criteria for inclusion or exclusion:
+  +  Analysis pulls data from other field experiments/Meta Analysis not included- I am interested in researchers' write ups of their original work
+  + Research uses an online survey company for data collection not included- for this study, I want to limit to looking at field experiments. Other survey experiments, I assess how the data were collected
+  + Most of the experiments are survey experiments 
+  + Not a research article (e.g. a journal cover or table of contents, or a theoretical article) - not included
+  + A published correction for a previously-published article- not included. If that original article is a field experiment, it will be included, as I am not looking at the validity of the results.
+  + Lab experiments are included (if I was uncertain, I used the rubric of "is this an experiment" and included it)
+  + Natural experiments are included
+  
+### Rethinking What I'm Doing
+
+As I go through this, I think I'm going to revise my strategy and use the smaller dataset of "field "experiment" - this is because I'm starting to confuse myself about surveys vs field experiments and I want to really narrow the focus for this project. In addition, I'm going to remove the full-text search option as well.
+
+### Revised Criteria for Inclusion/Exclusion
+
+American Journal of Political Science
+
+1.  Search is on "field experiment" (quotes included) to try and narrow the results appropriately
+2.  Meta-analysis not included
+3.  Data range: 2012 - 2021
+4.  This yielded 44 articles for inclusion
+
+American Political Science Review
+
+1.  Search is on "field experiment" (quotes included) to try and narrow the results appropriately
+2.  Option to search full-text included
+3.  Meta-analysis not included
+4.  Data range: 2012 - 2022
+5.  This yielded 25 articles for inclusion
+
+American Politics Research
+
+1.  Search is on "field experiment" (quotes included) to try and narrow the results appropriately
+2.  Meta-analysis not included
+3.  Data range: 2012 - 2022
+4.  This yielded 13 articles for inclusion
+
+Journal of Experimental Political Science
+
+1.  Search is on "field experiment" (quotes included) to try and narrow the results appropriately
+2.  Option to search full-text included
+3.  Meta-analysis not included
+4.  Data range: 2012 - 2022
+5.  This yielded 19 articles for inclusion
+
+Political Science Research and Methods
+
+1.  Search is on "field experiment" (quotes included) to try and narrow the results appropriately
+2.  Option to search full-text included
+3.  Meta-analysis not included
+4.  Data range: 2012 - 2022
+5.  This yielded 10 articles for inclusion
+
+Research & Politics
+
+1.  Search is on "field experiment" (quotes included) to try and narrow the results appropriately
+2.  Meta-analysis not included
+3.  Data range: 2014 - 2022
+4.  This yielded 10 articles for inclusion
+
+
+TOTAL: 121 Articles for Consideration
+
+General
++ One big question I'm having (which this particular project in no way addresses) is the question of the ethics of data usage as opposed to human subjects experiments (i.e. using scraped data, API data, partnering with an organization that owns a lot of data about people)
+
+### Next Steps
+
+1. Get all selected articles into 1 zip file and load into R
+2. Create corpus for each journal
+3. Create corpus for all journals
+4. Decide on search terms
+5. Start thinking about final visualizations

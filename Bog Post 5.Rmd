@@ -1,0 +1,200 @@
+---
+title: "Blog Post 5 - Getting the Data"
+description: |
+  The Process of Data Acquisition for my TaD Final Project.
+author:
+  - name: Lissie Bates-Haus, Ph.D. 
+    url: https://github.com/lbateshaus
+    affiliation: U Mass Amherst DACSS MS Student
+    affiliation_url: https://www.umass.edu/sbs/data-analytics-and-computational-social-science-program/ms
+date: "`r Sys.Date()`"
+output: distill::distill_article
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+This blog post will talk about the process of data collection and possibly some initial text analysis for my final Text as Data Project.
+
+The previous blog posts about this can be found here: [Blog Post 4](https://rpubs.com/lbateshaus/880476) and [Blog Post 4 (Take 2)](https://rpubs.com/lbateshaus/882420)
+
+Today I am working on finalizing my complete data collection. I have collected all the articles I am interested in using and cited them in EndNotes. Using that bibliography, I have cross-checked on my personal computer where I have a folder system set up to organize the pdfs, and ensured that I have pdfs of all the articles in my EndNotes bibliography, sorted into folders by publication.
+
+Using the code I worked on in Blog 4 (Take 2), I'm going to read in all of the articles.
+
+```{r}
+library(readr)
+library(pdftools)  #tool used by the web tutorial
+library(tm)
+```
+
+American Journal of Political Science:
+
+```{r}
+#set WD to the proper subfolder:
+setwd("~/DACSS/697D Text as Data/Final Project Materials/Articles pdfs/American Journal of Political Science")
+
+AJPSfiles <- list.files(pattern = "pdf$")
+
+AJPS <- lapply(AJPSfiles, pdf_text)
+
+```
+
+As before, there were a large number of parsing errors, which I believe to mean that not all of my characters were able to be read in.
+
+Check how many files loaded in:
+
+```{r}
+length(AJPS)  #verify how many files loaded in
+```
+
+Cross check this with EndNotes and downloaded files. No discrepancies found.
+
+Check the length of each file:
+
+```{r}
+lapply(AJPS, length)  #length of each pdf
+```
+
+Repeat this for each journal.
+
+```{r}
+
+#American Political Science Review
+
+setwd("~/DACSS/697D Text as Data/Final Project Materials/Articles pdfs/American Political Science Review")
+
+APSRfiles <- list.files(pattern = "pdf$")
+
+APSR <- lapply(APSRfiles, pdf_text)
+
+length(APSR)
+lapply(APSR, length) 
+```
+
+Cross-check with EndNotes and pdf folder. No discrepancies found.
+
+```{r}
+
+#American Politics Research
+
+setwd("~/DACSS/697D Text as Data/Final Project Materials/Articles pdfs/American Politics Research")
+
+APRfiles <- list.files(pattern = "pdf$")
+
+APR <- lapply(APRfiles, pdf_text)
+
+length(APR)
+lapply(APR, length) 
+```
+
+Cross-check with EndNotes and pdf folder. No discrepancies found.
+
+```{r}
+
+#Journal of Experimental Political Science
+
+setwd("~/DACSS/697D Text as Data/Final Project Materials/Articles pdfs/Journal of Experimental Political Science")
+
+JEPSfiles <- list.files(pattern = "pdf$")
+
+JEPS <- lapply(JEPSfiles, pdf_text)
+
+length(JEPS)
+lapply(JEPS, length) 
+```
+
+Cross-check with EndNotes and pdf folder. Discrepancy found with EndNote (20 citations in that database). Realize I've accidentally re-imported a citation I already had, and delete. No discrepancies found.
+
+
+```{r}
+
+#Political Science Research and Methods
+
+setwd("~/DACSS/697D Text as Data/Final Project Materials/Articles pdfs/Political Science Research and Methods")
+
+PSRMfiles <- list.files(pattern = "pdf$")
+
+PSRM <- lapply(PSRMfiles, pdf_text)
+
+length(PSRM)
+lapply(PSRM, length) 
+```
+
+Cross-check with EndNotes and pdf folder. No discrepancies found.
+
+```{r}
+
+#Research and Politics
+
+setwd("~/DACSS/697D Text as Data/Final Project Materials/Articles pdfs/Research and Politics")
+
+RPfiles <- list.files(pattern = "pdf$")
+
+RP <- lapply(RPfiles, pdf_text)
+
+length(RP)
+lapply(RP, length) 
+```
+
+Cross-check with EndNotes and pdf folder. No discrepancies found.
+
+AND THERE THEY ALL ARE!! This is very exciting.
+
+When I go back to my original research question, it is this:
+
+How are ethical standards related to experimental research dissmentaed to students, young prodessionals and an academic disciplime as a whole? I have uploaded the PowerPoint I created for the DACSS Three Minute Thesis research presentation [on my github](https://github.com/lbateshaus/Ethics/blob/main/Three%20Minute%20Thesis%20Presentation.pptx).
+
+In my pilot study, I did a simple wordsearch, and that is where I am going to begin with this expanded data set as well.
+
+Using a tutotorial on text mining [here](https://datawarrior.wordpress.com/2018/01/22/document-term-matrix-text-mining-in-r-and-python/), I am going to do an initial look at my documents first by journal and then as a whole.
+
+```{r}
+library(dplyr)
+library(textmineR)
+library(SnowballC)
+
+```
+
+```{r}
+AJPSdtm <- CreateDtm(AJPS, ngram_window = c(1, 1),
+                lower = TRUE,
+                remove_punctuation = TRUE,
+                remove_numbers = TRUE,
+                stem_lemma_function = wordStem)
+
+```
+
+```{r}
+AJPSget.doc.tokens<- function(AJPSdtm, docid)
+  AJPSdtm[docid, ] %>% as.data.frame() %>% rename(count=".") %>%
+  mutate(token=row.names(.)) %>% arrange(-count)
+ 
+AJPSget.token.occurrences<- function(AJPSdtm, token)
+  AJPSdtm[, token] %>% as.data.frame() %>% rename(count=".") %>%
+  mutate(token=row.names(.)) %>% arrange(-count)
+ 
+AJPSget.total.freq<- function(AJPSdtm, token) dtm[, token] %>% sum
+ 
+AJPSget.doc.freq<- function(AJPSdtm, token)
+  AJPSdtm[, token] %>% as.data.frame() %>% rename(count=".") %>%
+  filter(count>0) %>% pull(count) %>% length
+```
+
+See if I can pull from the AJPS which documents mention ethics (using stemming) and what the total count of that word is in this dataset.
+
+```{r}
+
+#which documents have the word?
+AJPSdtm %>% AJPSget.token.occurrences(wordStem('ethics')) %>% head(10)
+
+#total number of occurrence of the word?
+AJPSdtm %>% AJPSget.doc.freq(wordStem('ethics'))  
+```
+
+I need to make sure I am understanding this output correctly, as it's somewhat different from what I had dne in Blog Post 4 (Take 2).
+
+My first result is number of times the token (ethics) appears in a particular document and the document ID. The second result is the total number of occurrences by the word.
+
+I"m going to stop here and submit this, and plan to make an appointment to talk with Professor Song about the best way to do this analysis.

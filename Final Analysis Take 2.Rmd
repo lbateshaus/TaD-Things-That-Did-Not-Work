@@ -1,0 +1,212 @@
+---
+title: "Analysis for Final Project TAKE 2"
+description: |
+  Preliminary Analysis on Text
+author:
+  - name: Lissie Bates-Haus, Ph.D. 
+    url: https://github.com/lbateshaus
+    affiliation: U Mass Amherst DACSS MS Student
+    affiliation_url: https://www.umass.edu/sbs/data-analytics-and-computational-social-science-program/ms
+date: "`r Sys.Date()`"
+output: distill::distill_article
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+When I go back to my original research question, it is this:
+
+How are ethical standards related to experimental research dissemenated to students, young professionals and to an academic discipline as a whole? I have uploaded the PowerPoint I created for the DACSS Three Minute Thesis research presentation [on my github](https://github.com/lbateshaus/Ethics/blob/main/Three%20Minute%20Thesis%20Presentation.pptx).
+
+From my pilot study:
+
+The general topics that were searched on included:
+
++ Was there any mention of ethics in the article?
+
++ Was IRB approval reported?
+
++ Was informed consent obtained by the researchers from the research participants?
+
++ Was potential harm to research subjects or staff discussed?
+
+Searches included:
+
++ "ethic-"
+
++ "IRB", "institutional", "review board", "human", "subjects", "committee"
+
++ "informed", "consent"
+
++"harm", "burden", "mitigat-", "minimi-" and "safe-"
+
++ "informed", "consent"
+
++ "benefit"
+
+In addition, assessment was made as to the following:
+
++ Was contact information for the authors provided?
+
++ How were research subjects selected and/or recruited?
+
++ Was the study registered or preregistered?
+
++ Was the general conflict of interest disclosure included in the article?
+
++ Was the data made publicly available?
+
++ Was any financial support or funding acknowledged?
+
+What information am I looking for?
+
+1.  Number of documents (aka journal articles) that contain the word ethics, by Journal
+  +   Steps for the process:
+  +   Tokenize my documents?
+  +   Run count?
+
+2. Do I want to include all of the search terms I used in my pilot study? 
+
+3. Can I connect my authors with ethics mentions? And connect to my Networks project?
+
+```{r warning=FALSE}
+library(quanteda)
+library(readr)
+library(dplyr)
+```
+
+Trying something based on code found [here](https://slcladal.github.io/convertpdf2txt.html). 
+
+### Reading in the Texts
+
+_American Journal of Political Science_
+
+```{r}
+#function to perform pdf to text conversion for many documents
+#Just for AJPS for now
+
+convertpdf2txt <- function(dirpath){
+  files <- list.files(dirpath, full.names = T)
+  x <- sapply(files, function(x){
+  x <- pdftools::pdf_text(x) %>%
+  paste(sep = " ") %>%
+  stringr::str_replace_all(fixed("\n"), " ") %>%
+  stringr::str_replace_all(fixed("\r"), " ") %>%
+  stringr::str_replace_all(fixed("\t"), " ") %>%
+  stringr::str_replace_all(fixed("\""), " ") %>%
+  paste(sep = " ", collapse = " ") %>%
+  stringr::str_squish() %>%
+  stringr::str_replace_all("- ", "") 
+  return(x)
+    })
+}
+
+```
+
+Now apply the function to the directory:
+
+```{r}
+AJPStxts <- convertpdf2txt("~/DACSS/697D Text as Data/Final Project Materials/Articles pdfs/American Journal of Political Science")
+
+# inspect the structure of the txts element
+#str(AJPStxts)
+
+#Create Corpus
+AJPScorpus <- corpus(AJPStxts)
+AJPSsummary <- summary(AJPScorpus)
+AJPSsummary                       
+```
+
+OKAY THIS LOOKS MORE PROMISING!!  
+
+Now to repeat for the other journals.
+
+_American Political Science Review_
+
+```{r}
+APSRtxts <- convertpdf2txt("~/DACSS/697D Text as Data/Final Project Materials/Articles pdfs/American Political Science Review")
+
+# inspect the structure of the txts element
+#str(APSRtxts)
+
+#Create Corpus
+APSRcorpus <- corpus(APSRtxts)
+APSRsummary <- summary(APSRcorpus)
+APSRsummary                       
+```
+
+_American Politics Research_
+
+```{r}
+APRtxts <- convertpdf2txt("~/DACSS/697D Text as Data/Final Project Materials/Articles pdfs/American Politics Research")
+
+# inspect the structure of the txts element
+#str(APRtxts)
+
+#Create Corpus
+APRcorpus <- corpus(APRtxts)
+APRsummary <- summary(APRcorpus)
+APRsummary                       
+```
+
+_Journal of Experimental Political Research_
+
+```{r}
+JEPStxts <- convertpdf2txt("~/DACSS/697D Text as Data/Final Project Materials/Articles pdfs/Journal of Experimental Political Science")
+
+# inspect the structure of the txts element
+#str(JEPStxts)
+
+#Create Corpus
+JEPScorpus <- corpus(JEPStxts)
+JEPSsummary <- summary(JEPScorpus)
+JEPSsummary                       
+```
+
+_Political Science Research and Methods_
+
+```{r}
+PSRMtxts <- convertpdf2txt("~/DACSS/697D Text as Data/Final Project Materials/Articles pdfs/Political Science Research and Methods")
+
+# inspect the structure of the txts element
+#str(PSRMtxts)
+
+#Create Corpus
+PSRMcorpus <- corpus(PSRMtxts)
+PSRMsummary <- summary(PSRMcorpus)
+PSRMsummary                       
+```
+
+_Research and Politics_
+
+```{r}
+RAPtxts <- convertpdf2txt("~/DACSS/697D Text as Data/Final Project Materials/Articles pdfs/Research and Politics")
+
+# inspect the structure of the txts element
+#str(RAPtxts)
+
+#Create Corpus
+RAPcorpus <- corpus(RAPtxts)
+RAPsummary <- summary(RAPcorpus)
+RAPsummary                       
+```
+
+### Some Exploration
+
+```{r}
+
+AJPSdata_tokens <- tokens(AJPScorpus)
+kwic(AJPSdata_tokens, pattern = "ethics")
+
+```
+
+This is something to explore. In my original pilot study, I had 28 articles from the AJPS and had a count of 13 articles mentioning the word ethi* - so perhaps it's a stemming issue?
+
+```{r}
+kwic(AJPSdata_tokens, pattern = phrase("IRB approval"))
+```
+
+
+

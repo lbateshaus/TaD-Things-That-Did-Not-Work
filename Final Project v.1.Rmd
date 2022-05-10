@@ -1,0 +1,284 @@
+---
+title: "Analysis for Final Project TAKE 2"
+description: |
+  Preliminary Analysis on Text
+author:
+  - name: Lissie Bates-Haus, Ph.D. 
+    url: https://github.com/lbateshaus
+    affiliation: U Mass Amherst DACSS MS Student
+    affiliation_url: https://www.umass.edu/sbs/data-analytics-and-computational-social-science-program/ms
+date: "`r Sys.Date()`"
+output: distill::distill_article
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Based on my conversation with Professor Song, here are the next steps of my project:
+
+1. Clearly articulate the research question I can answer with this data.
+2. Combine all the articles into one corpus.
+3. Add appropriate identifiers/metadate.
+3. Choose the appropriate analytical tools.
+
+```{r warning=FALSE, message=FALSE}
+library(quanteda)
+library(readr)
+library(dplyr)
+library(stringr)
+library(tidytext)
+```
+
+## Research Question
+
+While my overarching questions are about how ethical standards are disseminated through an academic community, particularly to students and young professionals, my focus here is on journal publications. My initial question is similar to my pilot study, which is simply to find a count of how many articles mention the word ethics, and to compare amongst the different journals I have sampled from.I then plan to do some exploration, probably using LDA. 
+
+### Reading in the Texts
+_based on code found [here](https://slcladal.github.io/convertpdf2txt.html)_ 
+
+```{r}
+#function to perform pdf to text conversion for many documents
+#Just for AJPS for now
+
+convertpdf2txt <- function(dirpath){
+  files <- list.files(dirpath, full.names = T)
+  x <- sapply(files, function(x){
+  x <- pdftools::pdf_text(x) %>%
+  paste(sep = " ") %>%
+  stringr::str_replace_all(fixed("\n"), " ") %>%
+  stringr::str_replace_all(fixed("\r"), " ") %>%
+  stringr::str_replace_all(fixed("\t"), " ") %>%
+  stringr::str_replace_all(fixed("\""), " ") %>%
+  paste(sep = " ", collapse = " ") %>%
+  stringr::str_squish() %>%
+  stringr::str_replace_all("- ", "") 
+  return(x)
+    })
+}
+
+```
+
+Apply the function to the directory:
+
+```{r, results=FALSE, message=FALSE, warning=FALSE}
+texts <- convertpdf2txt("~/DACSS/697D Text as Data/Final Project Materials/Articles pdfs/All Articles")
+```
+
+I'm going to load in my csv of my citations as well, in case I need that information:
+
+```{r, results=FALSE, message=FALSE, warning=FALSE}
+#I'm going to load in the csv I have of my data citations:
+
+ethics_authors <- read_csv("~/DACSS/697E Network Analysis/Final Project/ethics_authors.csv", show_col_types = FALSE)
+
+```
+
+### Add Identifiers and Metadata
+
+```{r}
+#separate code chunks so I don't keep reading in the file
+# inspect the structure of the txts element
+#str(AJPStxts)
+
+#Create Corpus
+textsCorpus <- corpus(texts)
+textsSummary <- summary(textsCorpus)
+#textsSummary
+```
+
+Why has my textsSummary only stored 100 observations? My texts and textsCorpus both have 121. When I just run it, it shows 100 but does return 121.
+
+
+```{r}
+#check for metadata
+docvars(textsCorpus)
+head(textsCorpus)
+
+```
+
+No metadata available:
+
+I am wondering if I do, in fact, need to pull and and create as corpus all the articles by journal so that I can create journal title metadata? and then join the corpora? I will do that for now as I don't know how to extract the title from the texts or textCorpus.
+
+First, pull in each journal individually (I am surpressing this code for the sake of brevity).
+
+```{r, echo=FALSE, message=FALSE}
+
+# Journal of Political Science
+
+AJPStxts <- convertpdf2txt("~/DACSS/697D Text as Data/Final Project Materials/Articles pdfs/American Journal of Political Science")
+
+#Create Corpus
+AJPScorpus <- corpus(AJPStxts)
+AJPSsummary <- summary(AJPScorpus)
+
+
+#American Political Science Review
+
+APSRtxts <- convertpdf2txt("~/DACSS/697D Text as Data/Final Project Materials/Articles pdfs/American Political Science Review")
+
+#Create Corpus
+APSRcorpus <- corpus(APSRtxts)
+APSRsummary <- summary(APSRcorpus)
+
+
+#American Politics Research
+
+APRtxts <- convertpdf2txt("~/DACSS/697D Text as Data/Final Project Materials/Articles pdfs/American Politics Research")
+
+#Create Corpus
+APRcorpus <- corpus(APRtxts)
+APRsummary <- summary(APRcorpus)
+
+
+#Journal of Experimental Political Research
+
+JEPStxts <- convertpdf2txt("~/DACSS/697D Text as Data/Final Project Materials/Articles pdfs/Journal of Experimental Political Science")
+
+#Create Corpus
+JEPScorpus <- corpus(JEPStxts)
+JEPSsummary <- summary(JEPScorpus)
+
+
+#Political Science Research and Methods
+
+PSRMtxts <- convertpdf2txt("~/DACSS/697D Text as Data/Final Project Materials/Articles pdfs/Political Science Research and Methods")
+
+#Create Corpus
+PSRMcorpus <- corpus(PSRMtxts)
+PSRMsummary <- summary(PSRMcorpus)
+
+
+#Research and Politics
+
+RAPtxts <- convertpdf2txt("~/DACSS/697D Text as Data/Final Project Materials/Articles pdfs/Research and Politics")
+
+#Create Corpus
+RAPcorpus <- corpus(RAPtxts)
+RAPsummary <- summary(RAPcorpus)
+
+```
+
+
+Add Journal identifier to each summary and apply it to the Corpus:
+
+```{r}
+
+# Journal of Political Science
+AJPSsummary$journal <- "Journal of Political Science"
+docvars(AJPScorpus) <- AJPSsummary
+
+#American Political Science Review
+APSRsummary$journal <- "American Political Science Review"
+docvars(APSRcorpus) <- APSRsummary
+
+#American Politics Research
+APRsummary$journal <- "American Politics Research"
+docvars(APRcorpus) <- APRsummary
+
+#Journal of Experimental Political Research
+JEPSsummary$journal <- "Journal of Experimental Political Research"
+docvars(JEPScorpus) <- JEPSsummary
+
+#Political Science Research and Methods
+PSRMsummary$journal <- "Political Science Research and Methods"
+docvars(PSRMcorpus) <- PSRMsummary
+
+#Research and Politics
+RAPsummary$journal <- "Research and Politics"
+docvars(RAPcorpus) <- RAPsummary
+
+```
+
+```{r}
+names(AJPSsummary)
+names(APRsummary)
+names(APSRsummary)
+names(JEPSsummary)
+names(PSRMsummary)
+names(RAPsummary)
+```
+
+
+
+Join individual corpora into one combined corpus:
+
+```{r}
+#let's see if this works??
+
+combinedCorpus <- c(AJPScorpus, APRcorpus, APSRcorpus, JEPScorpus, PSRMcorpus, RAPcorpus)
+combinedCorpus_summary <-  summary(combinedCorpus)
+head(docvars(combinedCorpus))
+
+```
+
+So we now have a combined corpus with the journal article title. I'm now going to give each document a unique id as well.
+
+```{r}
+library(dplyr)
+
+#combinedCorpus_summary <- combinedCorpus_summary %>% mutate(ident = n())
+#docvars(combinedCorpus) <- combinedCorpus_summary
+#head(docvars(combinedCorpus))
+names(combinedCorpus_summary)
+summary(combinedCorpus)
+```
+
+For some reason, when it created the combinedCorpus, it pulled over the docvars twice?
+
+
+
+### Some Exploration
+
+```{r}
+
+AJPSdata_tokens <- tokens(AJPScorpus)
+kwic(AJPSdata_tokens, pattern = "ethics")
+
+```
+
+This is something to explore. In my original pilot study, I had 28 articles from the AJPS and had a count of 13 articles mentioning the word ethi* - so perhaps it's a stemming issue?
+
+```{r}
+kwic(AJPSdata_tokens, pattern = phrase("IRB approval"))
+```
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+
+#So, of course this isn't going to be easy. My text has been read in with no variables, so I need to think about how to do this. - Saving this in a code chunk for the code, but not going to use it!
+#Read documents in a different way
+
+#library(pdftools)
+
+#setwd("~/DACSS/697D Text as Data/Final Project Materials/Articles pdfs/All Articles")
+
+#textFiles <- list.files(pattern = "pdf$")
+
+#allTexts <- lapply(textFiles, pdf_text)
+
+#length(allTexts)
+#lapply(allTexts, length) 
+
+#Can I create a corpus from this?
+
+#allTextsCorpus <- corpus(textFiles)
+#head(allTextsCorpus)
+
+```
+
+
+
+

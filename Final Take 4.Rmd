@@ -1,0 +1,442 @@
+---
+title: "Final Project"
+description: |
+  Pulling together the semester's work into my final project.
+author:
+  - name: Lissie Bates-Haus, Ph.D. 
+    url: https://github.com/lbateshaus
+    affiliation: U Mass Amherst DACSS MS Student
+    affiliation_url: https://www.umass.edu/sbs/data-analytics-and-computational-social-science-program/ms
+date: "`r Sys.Date()`"
+output: distill::distill_article
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+While my overarching research agenda is concerned with the ways that ethical standards are communicated to, and disseminated through, academic and professional communities, the specific research question for this project is:
+
+_What can recent articles on experimental research in political science journals teach us about how ethical standards are discussed in publications?"_
+
+In order to explore this question, the following steps are taken.
+
+1. Several peer-reviewed journals are identified:
+  + American Journal of Political Science
+  + American Political Science Review
+  + American Politics Research
+  + Journal of Experimental Political Research
+  + Political Science Research and Methods
+  + Research and Politics
+  
+2. The article collection process is described [here](https://rpubs.com/lbateshaus/880476).
+
+3. Using code I've developed for this project, I will pull all the articles into R. In addition, I'll pull in the csv of all the article citation data from EndNotes.
+
+####Load in libraries:
+
+```{r, warning=FALSE, message=FALSE}
+#load in initial necessary libraries
+
+library(quanteda)
+library(readr)
+library(dplyr)
+library(stringr)
+library(tidytext)
+```
+
+#### Load in csv of citations:
+  
+```{r, results=FALSE, message=FALSE, warning=FALSE}
+#I'm going to load in the csv I have of my data citations:
+
+ethics_authors <- read_csv("~/DACSS/697E Network Analysis/Final Project/ethics_authors.csv", show_col_types = FALSE)
+```
+
+#### Create Corpus with metadata
+
+### Load in all articles as a single corpus:
+
+  + Create function to perform pdf to text conversion
+  + _based on code found [here](https://slcladal.github.io/convertpdf2txt.html)_ 
+
+```{r}
+#function to perform pdf to text conversion for many documents
+
+convertpdf2txt <- function(dirpath){
+  files <- list.files(dirpath, full.names = T)
+  x <- sapply(files, function(x){
+  x <- pdftools::pdf_text(x) %>%
+  paste(sep = " ") %>%
+  stringr::str_replace_all(fixed("\n"), " ") %>%
+  stringr::str_replace_all(fixed("\r"), " ") %>%
+  stringr::str_replace_all(fixed("\t"), " ") %>%
+  stringr::str_replace_all(fixed("\""), " ") %>%
+  paste(sep = " ", collapse = " ") %>%
+  stringr::str_squish() %>%
+  stringr::str_replace_all("- ", "") 
+  return(x)
+    })
+}
+
+```
+
+_Apply the function to the directory and create corpus:_
+[Note: commenting this out because I don't end up needing to do this step]
+
+```{r, results=FALSE, message=FALSE, warning=FALSE}
+#texts <- convertpdf2txt("~/DACSS/697D Text as Data/Final Project Materials/Articles pdfs/All Articles")
+#Create Corpus
+#textsCorpus <- corpus(texts)
+#head(textsCorpus)
+#textsSummary <- summary(textsCorpus)
+#head(textsSummary)
+```
+
+Question: my texts and corpus have 121 elements, which is the correct number. Why does textsSummary only have 100?
+
+In addition, one article did not download properly as a pdf of the whole article, so I have fixed that.
+
+_Check for metadata_
+
+```{r}
+#check for metadata
+#Note: when I originally did this step, there was no metadata
+#docvars(textsCorpus)
+
+```
+
+No metadata available.
+
+I am wondering if I do, in fact, need to pull and and create as corpus all the articles by journal so that I can create journal title metadata? and then join the corpora? I will do that for now as I don't know how to extract the title from the texts or textCorpus.
+
+First, pull in each journal individually (I am suppressing this code as well as all warnings for the sake of brevity, but am happy to provide it upon request).
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+
+# Journal of Political Science
+
+AJPStxts <- convertpdf2txt("~/DACSS/697D Text as Data/Final Project Materials/Articles pdfs/American Journal of Political Science")
+
+#Create Corpus
+AJPScorpus <- corpus(AJPStxts)
+AJPSsummary <- summary(AJPScorpus)
+
+
+#American Political Science Review
+
+APSRtxts <- convertpdf2txt("~/DACSS/697D Text as Data/Final Project Materials/Articles pdfs/American Political Science Review")
+
+#Create Corpus
+APSRcorpus <- corpus(APSRtxts)
+APSRsummary <- summary(APSRcorpus)
+
+
+#American Politics Research
+
+APRtxts <- convertpdf2txt("~/DACSS/697D Text as Data/Final Project Materials/Articles pdfs/American Politics Research")
+
+#Create Corpus
+APRcorpus <- corpus(APRtxts)
+APRsummary <- summary(APRcorpus)
+
+
+#Journal of Experimental Political Research
+
+JEPStxts <- convertpdf2txt("~/DACSS/697D Text as Data/Final Project Materials/Articles pdfs/Journal of Experimental Political Science")
+
+#Create Corpus
+JEPScorpus <- corpus(JEPStxts)
+JEPSsummary <- summary(JEPScorpus)
+
+
+#Political Science Research and Methods
+
+PSRMtxts <- convertpdf2txt("~/DACSS/697D Text as Data/Final Project Materials/Articles pdfs/Political Science Research and Methods")
+
+#Create Corpus
+PSRMcorpus <- corpus(PSRMtxts)
+PSRMsummary <- summary(PSRMcorpus)
+
+
+#Research and Politics
+
+RAPtxts <- convertpdf2txt("~/DACSS/697D Text as Data/Final Project Materials/Articles pdfs/Research and Politics")
+
+#Create Corpus
+RAPcorpus <- corpus(RAPtxts)
+RAPsummary <- summary(RAPcorpus)
+
+```
+
+### Add Journal identifier and unique ID to each summary and apply it to the Corpus:
+
+```{r}
+
+#Not sure if there's a better way to generate a unique ID number than coding this manually
+
+# Journal of Political Science
+AJPSsummary$Journal <- "American Journal of Political Science"
+AJPSsummary$ID <- 1:nrow(AJPSsummary) + 100
+docvars(AJPScorpus) <- AJPSsummary
+
+#American Political Science Review
+APSRsummary$Journal <- "American Political Science Review"
+APSRsummary$ID <- 1:nrow(APSRsummary) + 200
+docvars(APSRcorpus) <- APSRsummary
+
+#American Politics Research
+APRsummary$Journal <- "American Politics Research"
+APRsummary$ID <- 1:nrow(APRsummary) +300
+docvars(APRcorpus) <- APRsummary
+
+#Journal of Experimental Political Research
+JEPSsummary$Journal <- "Journal of Experimental Political Research"
+JEPSsummary$ID <- 1:nrow(JEPSsummary) + 400
+docvars(JEPScorpus) <- JEPSsummary
+
+#Political Science Research and Methods
+PSRMsummary$Journal <- "Political Science Research and Methods"
+PSRMsummary$ID <- 1:nrow(PSRMsummary) + 500
+docvars(PSRMcorpus) <- PSRMsummary
+
+#Research and Politics
+RAPsummary$Journal <- "Research and Politics"
+RAPsummary$ID <- 1:nrow(RAPsummary) + 600
+docvars(RAPcorpus) <- RAPsummary
+
+```
+
+Summary of each journal's metadata:
+
+```{r}
+names(AJPSsummary)
+names(APRsummary)
+names(APSRsummary)
+names(JEPSsummary)
+names(PSRMsummary)
+names(RAPsummary)
+```
+
+### Join individual corpora into one combined corpus:
+
+```{r}
+#let's see if this works??
+
+combinedCorpus <- c(AJPScorpus, APRcorpus, APSRcorpus, JEPScorpus, PSRMcorpus, RAPcorpus)
+docvars(combinedCorpus)
+
+#so I guess I don't need to create a summary? what happens if I do?
+combinedCorpusSummary <- docvars(combinedCorpus)
+
+```
+
+So now I have a corpus with metadata including journal title.
+
+How many documents in my combinedCorpus?
+
+```{r}
+ndoc(combinedCorpus)
+
+```
+
+
+```{r, warning=FALSE}
+library(tm)
+library(lexicon)
+library(wordcloud)
+library(textstem)
+```
+
+Now I'm going to tokenize my combinedCorpus, as well as remove numbers and punctuation:
+
+```{r}
+
+combinedTokens <- quanteda::tokens(combinedCorpus, 
+    remove_punct = T,
+    remove_numbers = T)
+print(combinedTokens)
+
+```
+
+First, I'm going to do a simple term search on the word "ethics" (eventually I will want to use lemmatization, I believe but this is just a start)
+
+```{r}
+kwic_ethics <- quanteda::kwic(combinedTokens, 
+                              pattern = c("ethics"))
+head(kwic_ethics)
+nrow(kwic_ethics)
+```
+
+Can I add other terms?
+
+```{r}
+kwic_ethics <- quanteda::kwic(combinedTokens, 
+                              pattern = c("ethics", "ethical"))
+head(kwic_ethics)
+nrow(kwic_ethics)
+```
+I think I'll just use the stem of "ethic" and see what that gets me: 
+
+```{r}
+kwic_ethics <- quanteda::kwic(combinedTokens, 
+                              pattern = c("ethic*"))
+head(kwic_ethics)
+nrow(kwic_ethics)
+```
+
+So this gives us 129 matches of words starting with ethic.
+
+Now I'm interested in how many documents it appears in:
+```{r}
+#so first I need to make a dfm?
+
+ethicsDfm <- dfm(combinedTokens)
+docfreq(ethicsDfm)["ethic"]
+docfreq(ethicsDfm)["ethica"]
+docfreq(ethicsDfm)["ethics"]
+docfreq(ethicsDfm)["ethical"]
+docfreq(ethicsDfm)["ethically"]
+```
+
+What I don't know though, is if there is overlap amongst these words in one document, so I think this is where lemmatize is will be helpful.
+
+```{r}
+#head(combinedCorpus)
+#combinedCorpus_lem <- textstem::tm_map(combinedCorpus, lemmatize_strings)
+
+```
+
+I'm having trouble making this work so I'm going back to Week 4 NLP tools and stemming:
+
+```{r}
+library(cleanNLP)
+library(tidytext)
+library(tidyverse)
+```
+
+Convert Corpus back to Text
+
+```{r}
+#convert to text
+combinedText <- as.character(combinedCorpus)
+```
+
+```{r}
+#pull out metadata
+myData <- docvars(combinedCorpus)
+head(myData)
+```
+
+```{r}
+#add text to my data
+myData$text <- combinedText
+head(myData)
+
+```
+
+
+[NOTE: I AM GOING TO TAKE THESE OUT AS ACTUAL CODE CHUNKS SO I CAN GET THIS TO KNIT FOR THE PURPOSES OF POSTING]
+
+Now we're going to annotate:
+
+{r, warning=FALSE}
+cnlp_init_udpipe()
+annotated <- cnlp_annotate(myData)
+
+```
+
+[Wow that took a long time!]
+
+Let's look at the tokens!
+
+```{r}
+head(annotated$token)
+head(annotated$document)
+```
+
+Join the token and document objects. 
+
+```{r}
+annoData <- left_join(annotated$document, annotated$token, by = "doc_id")
+head(annoData)
+```
+
+now I'm going to try and filter down just to the lemma ethic:
+
+```{r}
+ethics_docs <- annoData %>% 
+  filter(lemma == "ethic") %>%
+  group_by(Journal)
+```
+
+This gives us nowhere near enough results, and a visual inspection of the data shows us the the  lemmatization isn't great - we have six different words:
+
+ethic
+ethica
+ethical
+ethicality
+ethically
+ethics
+
+Let's see if we can get all of those into one search?
+
+```{r}
+ethics_docs <- annoData %>% 
+  filter(lemma == "ethic" | lemma =="ethica" | lemma == "ethical" | lemma == "ethicality" |
+        lemma == "ethically" | lemma == "ethics") %>%
+  group_by(Journal)
+```
+
+This looks like we now have all of our documents that use one of our search terms in one dataframe
+
+Now I'm going to get a list of document IDs and how many times our terms appear
+
+```{r}
+
+yes_ethics <-data.frame(table(ethics_docs$ID))
+
+#yes_ethics <- ethics_docs %>% group_by(doc_id) %>% summarize(count=nrow())  - ccode that didn't work
+yes_ethics
+
+```
+
+So, 51 of our 121 documents have one of our ethics terms in it.
+
+Now let's make a dataframe of our no ethics as well.
+
+{r}
+#no_ethics_docs <- annoData %>% 
+#  filter(lemma != "ethic" | lemma !="ethica" | lemma != "ethical" | lemma != "ethicality" |
+#        lemma != "ethically" | lemma != "ethics") %>%
+#  group_by(Journal)
+
+#no_ethics <- no_ethics_docs %>% group_by(doc_id) %>% summarize(count=n())
+#no_ethics
+
+#annoDataAll <- annoData %>% group_by(doc_id) %>% summarize(count = n())
+#no_ethics <- annoDataAll %>% filter(doc_id == yes_ethics$doc_id)
+```
+
+This really isn't working and I'm not sure how to do this!
+
+Going back to my tokens:
+
+```{r}
+docvars(combinedTokens)
+```
+I think at this point, I'm going to submit this as a blog post.
+
+```{r}
+annoDocs <- annotated$document
+```
+
+
+{r}
+setwd("~/DACSS/697D Text as Data/Final Project Materials")
+write_as_csv(annoDocs, "annoDocs.csv")
+
+```
+
+[Note: I ended up writing this to csv and bringing it into excel to do some quick and dirty bar charts.]
+
