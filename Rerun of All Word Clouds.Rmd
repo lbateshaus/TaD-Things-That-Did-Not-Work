@@ -1,0 +1,243 @@
+---
+title: "Rerun of Word Clouds - May 12, 2022"
+description: |
+  Rerunning my word clouds now that I've figured out the datacleaning somewhat
+author:
+  - name: Lissie Bates-Haus, Ph.D. 
+    url: https://github.com/lbateshaus
+    affiliation: U Mass Amherst DACSS MS Student
+    affiliation_url: https://www.umass.edu/sbs/data-analytics-and-computational-social-science-program/ms
+date: "`r Sys.Date()`"
+output: distill::distill_article
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Abstracts Word Cloud
+
+_Load in libraries:_
+
+```{r, warning=FALSE, message=FALSE}
+#load in initial necessary libraries
+
+library(quanteda)
+library(readr)
+library(dplyr)
+library(stringr)
+library(tidytext)
+library(tm)
+library(lexicon)
+library(wordcloud)
+library(textstem)
+library(tidyverse)
+library(quanteda)
+library(purrr)
+library(rvest)
+library(curl)
+library(httr)
+library(text2vec)
+library(LDAvis)
+library(caret)
+library(randomForest)
+library(caTools)
+library(ldatuning)
+```
+
+_Load in data from csv_
+
+```{r}
+setwd("~/DACCS R/Text as Data/Final Project TaD R")
+library(readr)
+
+authors_abstracts <- read_csv("authors_abstracts.csv", show_col_types = FALSE)
+
+```
+
+_Create character vector_
+
+```{r}
+
+abstracts <- authors_abstracts$Abstract
+class(abstracts)
+
+```
+
+_Quanteda Tokenize_
+
+```{r}
+corpusA <- corpus(abstracts)
+tokensA <- quanteda::tokens(corpusA, remove_punct = TRUE, remove_numbers = TRUE, remove_symbols = TRUE)
+tokensA <- tokens_select(tokensA, pattern = c(stopwords("en")), selection = "remove")
+#tokensA <- tokens_select(tokensA, pattern = "[:alnum:] ", selection = "remove", valuetype = c("regex") )
+```
+
+_convert to dataframe and add unique document ID_
+
+```{r}
+
+abstracts.df <- as.data.frame(abstracts)
+abstracts.df <- rename(abstracts.df, text = abstracts)
+abstracts.df$ID <- 1:nrow(abstracts.df)
+dim(abstracts.df)
+```
+
+_Create iterator:_
+
+```{r}
+# Iterates over each token
+itA <- itoken(as.list(tokensA), ids = abstracts.df$ID, progressbar = FALSE)
+
+# Prints iterator
+itA
+```
+
+_Vocabulary-Based Vectorization_
+
+```{r}
+# Built the vocabulary
+vA <- create_vocabulary(itA)
+
+# Print vocabulary
+#v
+class(vA)
+```
+
+_Attempt Stemming_
+
+```{r}
+tokensAstem <- tokens_wordstem(tokensA, language = quanteda_options("language_stemmer"))
+```
+
+#### Create vocab list from stemmed tokens_
+
+_Create iterator:_
+
+```{r}
+# Iterates over each token
+itAstem <- itoken(as.list(tokensAstem), ids = abstracts.df$ID, progressbar = FALSE)
+
+# Prints iterator
+itAstem
+```
+
+_Vocabulary-Based Vectorization_
+
+```{r}
+# Built the vocabulary
+vAstem <- create_vocabulary(itAstem)
+
+# Print vocabulary
+#v
+class(vAstem)
+```
+
+I don't think this is helpful for me at this point - not sure how to combine all words with the same stem?
+
+_Word Cloud from vA_
+
+
+```{r}
+
+library(wordcloud2)
+
+set.seed(1231)
+
+#put top 30 words and count into  dataframe
+
+#Put the top 40 words into its own dataframe?
+
+top40 <- vA %>%
+  dplyr::count(term_count, sort = TRUE) %>%
+  top_n(80) %>%
+  mutate(word = reorder(word, n))
+
+head(top80_16)
+
+write_as_csv(top80_16,"top80_16.csv")
+
+```
+
+
+
+
+wordcloud2(vA$term, size = .75, color="random-dark", nrow(vA) ) 
+
+```
+
+
+
+
+char_wordstem(
+  x,
+  language = quanteda_options("language_stemmer"),
+  check_whitespace = TRUE
+)
+
+dfm_wordstem(x, language = quanteda_options("language_stemmer"))
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+_convert to dataframe and add unique document ID_
+
+```{r}
+
+abstracts.df <- as.data.frame(abstracts)
+abstracts.df <- rename(abstracts.df, text = abstracts)
+abstracts.df$ID <- 1:nrow(abstracts.df)
+dim(abstracts.df)
+```
+
+
+_Data Cleaning_
+
++ remove numbers
+
+```{r}
+abstracts <- str_remove_all(abstracts, "[:digit:]")
+
+```
+
++ remove urls
+
+```{r, message=FALSE}
+#library(stringr)
+url_regex <- "http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+"
+
+abstracts <- str_remove_all(abstracts, url_regex)
+```
+
++ remove emails?
+
+```{r}
+#Function containing regex pattern to remove email id
+RemoveEmail <- function(x) {
+  require(stringr)
+  str_replace_all(x,"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\\.[a-zA-Z0-9-.]+", "")
+} 
+
+abstracts <- RemoveEmail(abstracts)
+```
+
+_convert to lowercase_
+
+```{r}
+abstracts <- str_to_lower(abstracts, locale = "en")
+```
